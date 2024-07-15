@@ -15,19 +15,30 @@ from mace.data import AtomicData
 from mace.modules.radial import ZBLBasis
 from mace.tools.scatter import scatter_sum
 
-from .blocks import (AtomicEnergiesBlock, EquivariantProductBasisBlock,
-                     InteractionBlock, LinearDipoleReadoutBlock,
-                     LinearNodeEmbeddingBlock, LinearReadoutBlock,
-                     NonLinearDipoleReadoutBlock, NonLinearReadoutBlock,
-                     RadialEmbeddingBlock, ScaleShiftBlock)
-from .utils import (compute_fixed_charge_dipole, compute_forces,
-                    get_edge_vectors_and_lengths, get_outputs,
-                    get_symmetric_displacement)
+from .blocks import (
+    AtomicEnergiesBlock,
+    EquivariantProductBasisBlock,
+    InteractionBlock,
+    LinearDipoleReadoutBlock,
+    LinearNodeEmbeddingBlock,
+    LinearReadoutBlock,
+    NonLinearDipoleReadoutBlock,
+    NonLinearReadoutBlock,
+    RadialEmbeddingBlock,
+    ScaleShiftBlock,
+)
+from .utils import (
+    compute_fixed_charge_dipole,
+    compute_forces,
+    get_edge_vectors_and_lengths,
+    get_outputs,
+    get_symmetric_displacement,
+)
 
 # pylint: disable=C0302
 
 
-@compile_mode("script")
+@compile_mode(None)
 class MACE(torch.nn.Module):
     def __init__(
         self,
@@ -276,7 +287,9 @@ class MACE(torch.nn.Module):
             "node_feats": node_feats_out,
         }
 
-    def descriptors(self, atom_pos, node_attrs, edge_index, shifts, gnn_layer):
+    def descriptors(
+        self, atom_pos, node_attrs, edge_index, shifts, _atomic_numbers, gnn_layer
+    ):
         if gnn_layer > len(self.interactions):
             raise ValueError(
                 f"This model has {len(self.interactions)} gnn layers, while descriptors have been required for the {gnn_layer} layer"
@@ -314,7 +327,7 @@ class MACE(torch.nn.Module):
         return torch.cat(node_feats_list, dim=-1)
 
 
-@compile_mode("script")
+@compile_mode(None)
 class ScaleShiftMACE(MACE):
     def __init__(
         self,
