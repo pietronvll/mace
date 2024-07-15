@@ -8,32 +8,21 @@ from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 import numpy as np
 import torch
+
 from e3nn import o3
 from e3nn.util.jit import compile_mode
-
 from mace.data import AtomicData
 from mace.modules.radial import ZBLBasis
 from mace.tools.scatter import scatter_sum
 
-from .blocks import (
-    AtomicEnergiesBlock,
-    EquivariantProductBasisBlock,
-    InteractionBlock,
-    LinearDipoleReadoutBlock,
-    LinearNodeEmbeddingBlock,
-    LinearReadoutBlock,
-    NonLinearDipoleReadoutBlock,
-    NonLinearReadoutBlock,
-    RadialEmbeddingBlock,
-    ScaleShiftBlock,
-)
-from .utils import (
-    compute_fixed_charge_dipole,
-    compute_forces,
-    get_edge_vectors_and_lengths,
-    get_outputs,
-    get_symmetric_displacement,
-)
+from .blocks import (AtomicEnergiesBlock, EquivariantProductBasisBlock,
+                     InteractionBlock, LinearDipoleReadoutBlock,
+                     LinearNodeEmbeddingBlock, LinearReadoutBlock,
+                     NonLinearDipoleReadoutBlock, NonLinearReadoutBlock,
+                     RadialEmbeddingBlock, ScaleShiftBlock)
+from .utils import (compute_fixed_charge_dipole, compute_forces,
+                    get_edge_vectors_and_lengths, get_outputs,
+                    get_symmetric_displacement)
 
 # pylint: disable=C0302
 
@@ -286,6 +275,43 @@ class MACE(torch.nn.Module):
             "hessian": hessian,
             "node_feats": node_feats_out,
         }
+
+    def descriptors(self, atom_pos, node_attrs, edge_index, shifts, gnn_layer):
+        if gnn_layer > len(self.interactions):
+            raise ValueError(
+                f"This model has {len(self.interactions)} gnn layers, while descriptors have been required for the {gnn_layer} layer"
+            )
+        # Embeddings
+        node_feats = self.node_embedding(node_attrs)
+        vectors, lengths = get_edge_vectors_and_lengths(
+            positions=atom_pos,
+            edge_index=edge_index,
+            shifts=shifts,
+        )
+        edge_attrs = self.spherical_harmonics(vectors)
+        edge_feats = self.radial_embedding(
+            lengths, node_attrs, edge_index, self.atomic_numbers
+        )
+
+        node_feats_list = []
+        for layer_id, (interaction, product) in enumerate(
+            zip(self.interactions, self.products)
+        ):
+            node_feats, sc = interaction(
+                node_attrs=node_attrs,
+                node_feats=node_feats,
+                edge_attrs=edge_attrs,
+                edge_feats=edge_feats,
+                edge_index=edge_index,
+            )
+
+            node_feats = product(node_feats=node_feats, sc=sc, node_attrs=node_attrs)
+            # Extract only scalars
+            invariant_slices = product.linear.irreps_out.slices()[0]
+            node_feats_list.append(node_feats[..., invariant_slices])
+            if layer_id + 1 == gnn_layer:
+                break
+        return torch.cat(node_feats_list, dim=-1)
 
 
 @compile_mode("script")
