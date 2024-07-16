@@ -9,9 +9,9 @@ from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch.nn.functional
+
 from e3nn import nn, o3
 from e3nn.util.jit import compile_mode
-
 from mace.tools.compile import simplify_if_compile
 from mace.tools.scatter import scatter_sum
 
@@ -31,7 +31,7 @@ from .radial import (
 from .symmetric_contraction import SymmetricContraction
 
 
-@compile_mode("script")
+@compile_mode(None)
 class LinearNodeEmbeddingBlock(torch.nn.Module):
     def __init__(self, irreps_in: o3.Irreps, irreps_out: o3.Irreps):
         super().__init__()
@@ -44,7 +44,7 @@ class LinearNodeEmbeddingBlock(torch.nn.Module):
         return self.linear(node_attrs)
 
 
-@compile_mode("script")
+@compile_mode(None)
 class LinearReadoutBlock(torch.nn.Module):
     def __init__(self, irreps_in: o3.Irreps):
         super().__init__()
@@ -55,7 +55,7 @@ class LinearReadoutBlock(torch.nn.Module):
 
 
 @simplify_if_compile
-@compile_mode("script")
+@compile_mode(None)
 class NonLinearReadoutBlock(torch.nn.Module):
     def __init__(
         self, irreps_in: o3.Irreps, MLP_irreps: o3.Irreps, gate: Optional[Callable]
@@ -73,7 +73,7 @@ class NonLinearReadoutBlock(torch.nn.Module):
         return self.linear_2(x)  # [n_nodes, 1]
 
 
-@compile_mode("script")
+@compile_mode(None)
 class LinearDipoleReadoutBlock(torch.nn.Module):
     def __init__(self, irreps_in: o3.Irreps, dipole_only: bool = False):
         super().__init__()
@@ -87,7 +87,7 @@ class LinearDipoleReadoutBlock(torch.nn.Module):
         return self.linear(x)  # [n_nodes, 1]
 
 
-@compile_mode("script")
+@compile_mode(None)
 class NonLinearDipoleReadoutBlock(torch.nn.Module):
     def __init__(
         self,
@@ -127,7 +127,7 @@ class NonLinearDipoleReadoutBlock(torch.nn.Module):
         return self.linear_2(x)  # [n_nodes, 1]
 
 
-@compile_mode("script")
+@compile_mode(None)
 class AtomicEnergiesBlock(torch.nn.Module):
     atomic_energies: torch.Tensor
 
@@ -150,7 +150,7 @@ class AtomicEnergiesBlock(torch.nn.Module):
         return f"{self.__class__.__name__}(energies=[{formatted_energies}])"
 
 
-@compile_mode("script")
+@compile_mode(None)
 class RadialEmbeddingBlock(torch.nn.Module):
     def __init__(
         self,
@@ -190,7 +190,7 @@ class RadialEmbeddingBlock(torch.nn.Module):
         return radial * cutoff  # [n_edges, n_basis]
 
 
-@compile_mode("script")
+@compile_mode(None)
 class EquivariantProductBasisBlock(torch.nn.Module):
     def __init__(
         self,
@@ -229,7 +229,7 @@ class EquivariantProductBasisBlock(torch.nn.Module):
         return self.linear(node_feats)
 
 
-@compile_mode("script")
+@compile_mode(None)
 class InteractionBlock(torch.nn.Module):
     def __init__(
         self,
@@ -275,7 +275,7 @@ class InteractionBlock(torch.nn.Module):
 nonlinearities = {1: torch.nn.functional.silu, -1: torch.tanh}
 
 
-@compile_mode("script")
+@compile_mode(None)
 class TensorProductWeightsBlock(torch.nn.Module):
     def __init__(self, num_elements: int, num_edge_feats: int, num_feats_out: int):
         super().__init__()
@@ -303,7 +303,7 @@ class TensorProductWeightsBlock(torch.nn.Module):
         )
 
 
-@compile_mode("script")
+@compile_mode(None)
 class ResidualElementDependentInteractionBlock(InteractionBlock):
     def _setup(self) -> None:
         self.linear_up = o3.Linear(
@@ -367,7 +367,7 @@ class ResidualElementDependentInteractionBlock(InteractionBlock):
         return message + sc  # [n_nodes, irreps]
 
 
-@compile_mode("script")
+@compile_mode(None)
 class AgnosticNonlinearInteractionBlock(InteractionBlock):
     def _setup(self) -> None:
         self.linear_up = o3.Linear(
@@ -433,7 +433,7 @@ class AgnosticNonlinearInteractionBlock(InteractionBlock):
         return message  # [n_nodes, irreps]
 
 
-@compile_mode("script")
+@compile_mode(None)
 class AgnosticResidualNonlinearInteractionBlock(InteractionBlock):
     def _setup(self) -> None:
         # First linear
@@ -501,7 +501,7 @@ class AgnosticResidualNonlinearInteractionBlock(InteractionBlock):
         return message  # [n_nodes, irreps]
 
 
-@compile_mode("script")
+@compile_mode(None)
 class RealAgnosticInteractionBlock(InteractionBlock):
     def _setup(self) -> None:
         # First linear
@@ -573,7 +573,7 @@ class RealAgnosticInteractionBlock(InteractionBlock):
         )  # [n_nodes, channels, (lmax + 1)**2]
 
 
-@compile_mode("script")
+@compile_mode(None)
 class RealAgnosticResidualInteractionBlock(InteractionBlock):
     def _setup(self) -> None:
         # First linear
@@ -645,7 +645,7 @@ class RealAgnosticResidualInteractionBlock(InteractionBlock):
         )  # [n_nodes, channels, (lmax + 1)**2]
 
 
-@compile_mode("script")
+@compile_mode(None)
 class RealAgnosticAttResidualInteractionBlock(InteractionBlock):
     def _setup(self) -> None:
         self.node_feats_down_irreps = o3.Irreps("64x0e")
@@ -738,7 +738,7 @@ class RealAgnosticAttResidualInteractionBlock(InteractionBlock):
         )  # [n_nodes, channels, (lmax + 1)**2]
 
 
-@compile_mode("script")
+@compile_mode(None)
 class ScaleShiftBlock(torch.nn.Module):
     def __init__(self, scale: float, shift: float):
         super().__init__()
